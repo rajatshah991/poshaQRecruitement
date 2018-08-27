@@ -15,3 +15,206 @@ From above features these endpoints should be running.
 
 - Provide Database dump While you commit.
 - All endpoints will be tested using postman app.
+----------------------------------------------------------------------------------------------------------------------------------------
+Setting up web server:
+
+const express = require('express');
+const bodyParser = require('body-parser');
+
+// create express app
+const app = express();
+
+// parse requests of content-type - application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: true }))
+
+// parse requests of content-type - application/json
+app.use(bodyParser.json())
+
+const dbConfig = require('./config/database.config.js');
+const mongoose = require('mongoose');
+
+mongoose.Promise = global.Promise;
+
+// Connecting to the database
+mongoose.connect(dbConfig.url, {
+    useNewUrlParser: true
+}).then(() => {
+    console.log("Successfully connected to the database");    
+}).catch(err => {
+    console.log('Could not connect to the database. Exiting now...');
+    process.exit();
+});
+
+// define a simple route
+app.get('/', (req, res) => {
+    res.json({"message": "Welcome to EasyNotes application. Take notes quickly. Organize and keep track of all your notes."});
+});
+
+// listen for requests
+app.listen(3000, () => {
+    console.log("Server is listening on port 3000");
+});
+
+configuring and Connecting to the database:
+
+module.exports = {
+    url: 'mongodb://localhost:27017/easy-notes'
+}
+note.model.js
+
+const mongoose = require('mongoose');
+
+const NoteSchema = mongoose.Schema({
+    title: String,
+    content: String
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('Note', NoteSchema);
+
+note.routes.js:
+
+module.exports = (app) => {
+    const notes = require('../controllers/note.controller.js');
+
+    // Create a new Note
+    app.post('/notes', notes.create);
+
+    // Retrieve all Notes
+    app.get('/notes', notes.findAll);
+
+    // Retrieve a single Note with noteId
+    app.get('/notes/:noteId', notes.findOne);
+
+    // Update a Note with noteId
+    app.put('/notes/:noteId', notes.update);
+
+    // Delete a Note with noteId
+    app.delete('/notes/:noteId', notes.delete);
+}
+
+note.controller.js:
+const Note = require('../models/note.model.js');
+
+// Create and Save a new Note
+exports.create = (req, res) => {
+
+};
+
+// Retrieve and return all notes from the database.
+exports.findAll = (req, res) => {
+
+};
+
+// Find a single note with a noteId
+exports.findOne = (req, res) => {
+
+};
+
+// Update a note identified by the noteId in the request
+exports.update = (req, res) => {
+
+};
+
+// Delete a note with the specified noteId in the request
+exports.delete = (req, res) => {
+
+};
+
+Creating a new Note:
+exports.create = (req, res) => {
+    // Validate request
+    if(!req.body.content) {
+        return res.status(400).send({
+            message: "Note content can not be empty"
+        });
+    }
+
+    // Create a Note
+    const note = new Note({
+        title: req.body.title || "Untitled Note", 
+        content: req.body.content
+    });
+
+    // Save Note in the database
+    note.save()
+    .then(data => {
+        res.send(data);
+    }).catch(err => {
+        res.status(500).send({
+            message: err.message || "Some error occurred while creating the Note."
+        });
+    });
+};
+Retrieving all Notes:
+
+exports.findAll = (req, res) => {
+    Note.find()
+    .then(notes => {
+        res.send(notes);
+    }).catch(err => {
+        res.status(500).send({
+            message: err.message || "Some error occurred while retrieving notes."
+        });
+    });
+};
+updating notes:
+
+exports.update = (req, res) => {
+    // Validate Request
+    if(!req.body.content) {
+        return res.status(400).send({
+            message: "Note content can not be empty"
+        });
+    }
+
+    // Find note and update it with the request body
+    Note.findByIdAndUpdate(req.params.noteId, {
+        title: req.body.title || "Untitled Note",
+        content: req.body.content
+    }, {new: true})
+    .then(note => {
+        if(!note) {
+            return res.status(404).send({
+                message: "Note not found with id " + req.params.noteId
+            });
+        }
+        res.send(note);
+    }).catch(err => {
+        if(err.kind === 'ObjectId') {
+            return res.status(404).send({
+                message: "Note not found with id " + req.params.noteId
+            });                
+        }
+        return res.status(500).send({
+            message: "Error updating note with id " + req.params.noteId
+        });
+    });
+};
+
+Deleting notes:
+
+exports.delete = (req, res) => {
+    Note.findByIdAndRemove(req.params.noteId)
+    .then(note => {
+        if(!note) {
+            return res.status(404).send({
+                message: "Note not found with id " + req.params.noteId
+            });
+        }
+        res.send({message: "Note deleted successfully!"});
+    }).catch(err => {
+        if(err.kind === 'ObjectId' || err.name === 'NotFound') {
+            return res.status(404).send({
+                message: "Note not found with id " + req.params.noteId
+            });                
+        }
+        return res.status(500).send({
+            message: "Could not delete note with id " + req.params.noteId
+        });
+    });
+};
+
+
+
